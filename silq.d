@@ -59,8 +59,22 @@ int run(string path){
 			}
 		}
 	}
-	if(opt.backend==BackendType.verify){
+	else if(opt.backend==BackendType.verify){
 		writeln("Verify");
+		// Check which verify mode the user is in (assume full by default, or one in dev for development purposes)
+		writeln("[VERIFICATION MODE]");
+		
+		// Check if there are suitable function summaries (in a generated summaries folder)
+		// If there aren't enough - generate summaries and inform the user to fill them out
+		// OR meet other requirements (e.g. measurement options)
+		import std.file : mkdir, getcwd, exists;
+		auto dir = getcwd() ~ "/summaries";		
+		if (!dir.exists){
+			dir.mkdir;
+			writeln("Summaries folder created at ", dir);
+		}
+
+		// If given summaries, call proof obligation generator and send to solver
 	}
 	return !!err.nerrors;
 }
