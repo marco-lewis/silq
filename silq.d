@@ -69,12 +69,16 @@ int run(string path){
 		// OR meet other requirements (e.g. measurement options)
 		import std.file : mkdir, getcwd, exists;
 		auto dir = getcwd() ~ "/summaries";		
-		if (!dir.exists){
+		if(!dir.exists){
 			dir.mkdir;
 			writeln("Summaries folder created at ", dir);
 		}
 
 		// If given summaries, call proof obligation generator and send to solver
+		if(true){
+			import qver;
+			auto be=new QVer(path);
+		}
 	}
 	return !!err.nerrors;
 }
