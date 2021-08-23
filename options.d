@@ -20,6 +20,7 @@ enum ErrorFormat{
 enum BackendType{
 	none,
 	run,
+	verify,
 }
 
 enum OutputForm{

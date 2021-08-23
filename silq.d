@@ -59,6 +59,9 @@ int run(string path){
 			}
 		}
 	}
+	if(opt.backend==BackendType.verify){
+		writeln("Verify");
+	}
 	return !!err.nerrors;
 }
 
@@ -117,6 +120,7 @@ int main(string[] args){
 			//case "--raw": opt.outputForm=OutputForm.raw; break;
 			//case "--raw-error": opt.outputForm=OutputForm.rawError; break;
 			case "--run": opt.backend=BackendType.run; break;
+			case "--verify": opt.backend=BackendType.verify; break;
 			case "--unsafe-capture-const": astopt.allowUnsafeCaptureConst=true; break;
 			default:
 				/+if(x.startsWith("--plot=")){
