@@ -78,7 +78,9 @@ int run(string path){
 		if(true){
 			import qver;
 			auto be=new QVer(path);
+			writeln("Verifying");
 		}
+		writeln("Done!");
 	}
 	return !!err.nerrors;
 }
