@@ -77,8 +77,10 @@ int run(string path){
 		// If given summaries, call proof obligation generator and send to solver
 		if(true){
 			import qver;
+			// Sort functions into a verified order
 			auto be=new QVer(path);
 			writeln("Verifying");
+			be.verify(functions);
 		}
 		writeln("Done!");
 	}
