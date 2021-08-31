@@ -18,8 +18,11 @@
 // ITE
 // Loops
 
+import std.stdio, std.exception;
 
-import ast.lexer, ast.parser, ast.expression, ast.declaration, ast.error, help;
+import ast.expression,ast.declaration,ast.type;
+import ast.lexer,ast.semantic_,ast.reverse,ast.scope_,ast.error;
+import util;
 
 class QVer{
 	this(string sourceFile){
@@ -30,16 +33,21 @@ class QVer{
 		// Job: read a function and convert it to a proof obligation (with any summaries that have been made)
 		// Either call scripts or create SMTLIB in D
 		auto interpreter=VerInterpreter!bool(false);
-
+		writeln("Interpreter made");
+		
 		// Collect all functions needed from other files
 		// Order functions so that lowest level function is verified first
-		
+		interpreter.fetchFunctions(defs);
+		writeln("Functions fetched");
+		writeln("Functions sorted");
+
 		// For each function
+			// Rename variables
 			// Generate proof obligations through interpreter
 			// Look up stored verified functions or use function summary
 			// Send to a solver to verify
 			// Store verified obligations
-
+		writeln("Proof obligations generated");
 		// Read result and give information
 
 		return false;
@@ -63,6 +71,79 @@ struct VerInterpreter(Bool){
 	// 	this.qstate=qstate;
 	// 	this.hasFrame=hasFrame;
 	// }
+
+	void fetchFunctions(FunctionDef defs){
+		foreach(func_name, def;defs){
+			CompoundExp statements = def.body_;
+			foreach(s; statements.s){
+				interpreter.runStm(s);
+			}
+		}
+	}
+
+	void runStm(Expression e){
+		// TODO: Error - try and catch
+		runStm2(e);
+	}
+	void runStm2(Expression e){
+	// 	if(opt.trace && !isInPrelude(functionDef)){
+	// 		writeln(qstate);
+	// 		writeln();
+	// 		writeln("STATEMENT");
+	// 		writeln(e);
+	// 		writeln();
+	// 	}
+		if(auto nde=cast(DefExp)e){
+			auto de=cast(DefineExp)nde.initializer;
+			runStm2(de);
+		}else if(auto ae=cast(AssignExp)e){
+			auto lhs=ae.e1,rhs=runExp(ae.e2);
+			writeln(lhs,":", rhs);
+		}else if(auto ae=cast(DefineExp)e){
+			if(ae.isSwap){
+				auto tpl=cast(TupleExp)unwrap(ae.e2);
+				enforce(!!tpl);
+				writeln(tpl.e[0], ":", tpl.e[1]);
+			}else{
+				auto lhs=ae.e1,rhs=runExp(ae.e2);
+				writeln(lhs,"=", rhs);
+			}
+		}
+	// else if(auto ce=cast(CatAssignExp)e){
+	// 	}else if(isOpAssignExp(e)){
+	// 		QState.Value perform(QState.Value a,QState.Value b){
+	// 			if(cast(OrAssignExp)e) ;
+	// 			if(cast(AndAssignExp)e) ;
+	// 			if(cast(AddAssignExp)e) ;
+	// 			if(cast(SubAssignExp)e) ;
+	// 			if(cast(MulAssignExp)e) ;
+	// 			if(cast(DivAssignExp)e||cast(IDivAssignExp)e){}
+	// 			if(cast(ModAssignExp)e) ;
+	// 			if(cast(PowAssignExp)e){}
+	// 			if(cast(BitOrAssignExp)e) ;
+	// 			if(cast(BitXorAssignExp)e) ;
+	// 			if(cast(BitAndAssignExp)e) ;
+	// 			assert(0);
+	// 		}
+	// 	}else if(auto call=cast(CallExp)e){
+	// 	}else if(auto ce=cast(CompoundExp)e){
+	// 	}else if(auto ite=cast(IteExp)e){
+	// 	}else if(auto re=cast(RepeatExp)e){
+	// 	}else if(auto fe=cast(ForExp)e){
+	// 	}else if(auto we=cast(WhileExp)e){
+	// 	}else if(auto re=cast(ReturnExp)e){
+	// 	}else if(auto ae=cast(AssertExp)e){
+	// 	}else if(auto oe=cast(ObserveExp)e){
+	// 	}else if(auto fe=cast(ForgetExp)e){
+	// 	}else if(auto ce=cast(CommaExp)e){
+	// 	}else if(auto fd=cast(FunctionDef)e){
+	// 	}else if(cast(Declaration)e){
+	// 		// do nothing
+	// 	}else{
+	// 		enforce(0,text("TODO: ",e));
+	// 	}
+	}
+
 
 	// QState.Value runExp(Expression e){
 	// 	if(!qstate.state.length) return QState.Value.init;
@@ -225,60 +306,6 @@ struct VerInterpreter(Bool){
 	// 	return doIt(e);
 	// }
 
-	// void runStm(Expression e,ref QState retState){
-	// 	try{
-	// 		runStm2(e,retState);
-	// 	}catch(Exception ex){
-	// 		version(LOCALIZE) throw localizedException(ex,e.loc);
-	// 		else throw ex;
-	// 	}
-	// }
-	// void runStm2(Expression e,ref QState retState){
-	// 	if(!qstate.state.length) return;
-	// 	if(opt.trace && !isInPrelude(functionDef)){
-	// 		writeln(qstate);
-	// 		writeln();
-	// 		writeln("STATEMENT");
-	// 		writeln(e);
-	// 		writeln();
-	// 	}
-	// 	if(auto nde=cast(DefExp)e){
-	// 	}else if(auto ae=cast(AssignExp)e){
-	// 	}else if(auto ae=cast(DefineExp)e){
-	// 	}else if(auto ce=cast(CatAssignExp)e){
-	// 	}else if(isOpAssignExp(e)){
-	// 		QState.Value perform(QState.Value a,QState.Value b){
-	// 			if(cast(OrAssignExp)e) ;
-	// 			if(cast(AndAssignExp)e) ;
-	// 			if(cast(AddAssignExp)e) ;
-	// 			if(cast(SubAssignExp)e) ;
-	// 			if(cast(MulAssignExp)e) ;
-	// 			if(cast(DivAssignExp)e||cast(IDivAssignExp)e){}
-	// 			if(cast(ModAssignExp)e) ;
-	// 			if(cast(PowAssignExp)e){}
-	// 			if(cast(BitOrAssignExp)e) ;
-	// 			if(cast(BitXorAssignExp)e) ;
-	// 			if(cast(BitAndAssignExp)e) ;
-	// 			assert(0);
-	// 		}
-	// 	}else if(auto call=cast(CallExp)e){
-	// 	}else if(auto ce=cast(CompoundExp)e){
-	// 	}else if(auto ite=cast(IteExp)e){
-	// 	}else if(auto re=cast(RepeatExp)e){
-	// 	}else if(auto fe=cast(ForExp)e){
-	// 	}else if(auto we=cast(WhileExp)e){
-	// 	}else if(auto re=cast(ReturnExp)e){
-	// 	}else if(auto ae=cast(AssertExp)e){
-	// 	}else if(auto oe=cast(ObserveExp)e){
-	// 	}else if(auto fe=cast(ForgetExp)e){
-	// 	}else if(auto ce=cast(CommaExp)e){
-	// 	}else if(auto fd=cast(FunctionDef)e){
-	// 	}else if(cast(Declaration)e){
-	// 		// do nothing
-	// 	}else{
-	// 		enforce(0,text("TODO: ",e));
-	// 	}
-	// }
 	// void run(ref QState retState){
 	// 	foreach(s;statements.s){
 	// 		runStm(s,retState);
