@@ -42,11 +42,14 @@ class QVer{
 		writeln("Functions sorted");
 
 		// For each function
+		foreach(func_name, def;defs){
+			writeln(func_name);
 			// Rename variables
 			// Generate proof obligations through interpreter
 			// Look up stored verified functions or use function summary
 			// Send to a solver to verify
 			// Store verified obligations
+		}
 		writeln("Proof obligations generated");
 		// Read result and give information
 
@@ -72,11 +75,11 @@ struct VerInterpreter(Bool){
 	// 	this.hasFrame=hasFrame;
 	// }
 
-	void fetchFunctions(FunctionDef defs){
+	void fetchFunctions(FunctionDef[string] defs){
 		foreach(func_name, def;defs){
 			CompoundExp statements = def.body_;
 			foreach(s; statements.s){
-				interpreter.runStm(s);
+				this.runStm(s);
 			}
 		}
 	}
@@ -97,7 +100,7 @@ struct VerInterpreter(Bool){
 			auto de=cast(DefineExp)nde.initializer;
 			runStm2(de);
 		}else if(auto ae=cast(AssignExp)e){
-			auto lhs=ae.e1,rhs=runExp(ae.e2);
+			auto lhs=ae.e1,rhs=/*runExp*/(ae.e2);
 			writeln(lhs,":", rhs);
 		}else if(auto ae=cast(DefineExp)e){
 			if(ae.isSwap){
@@ -105,7 +108,7 @@ struct VerInterpreter(Bool){
 				enforce(!!tpl);
 				writeln(tpl.e[0], ":", tpl.e[1]);
 			}else{
-				auto lhs=ae.e1,rhs=runExp(ae.e2);
+				auto lhs=ae.e1,rhs=/*runExp*/(ae.e2);
 				writeln(lhs,"=", rhs);
 			}
 		}
