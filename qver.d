@@ -18,11 +18,24 @@
 // ITE
 // Loops
 
-import std.stdio, std.exception, std.conv;
+import std.conv: text, to;
+import std.string: split;
+import std.algorithm;
+import std.array: array;
+import std.range: iota, zip, repeat, walkLength;
+import std.string: startsWith,join;
+import std.typecons: q=tuple,Q=Tuple;
+import std.exception: enforce;
 
+import options;
+import astopt;
+import util.hashtable,util;
 import ast.expression,ast.declaration,ast.type;
 import ast.lexer,ast.semantic_,ast.reverse,ast.scope_,ast.error;
-import util.hashtable;
+import util;
+
+import std.random, sample;
+import std.complex, std.math;
 
 class QVer{
 	this(string sourceFile){
@@ -37,15 +50,18 @@ class QVer{
 		
 		// Collect all functions needed from other files
 		// Order functions so that lowest level function is verified first
-		interpreter.fetchFunctions(defs);
+		// interpreter.fetchFunctions(defs);
 		writeln("Functions fetched");
 		writeln("Functions sorted");
 
 		// For each function
 		foreach(func_name, def;defs){
 			writeln(func_name);
-			// Rename variables
 			// Generate proof obligations through interpreter
+			CompoundExp statements = def.body_;
+			foreach (s; statements.s){
+				interpreter.verifStm(s);
+			}
 			// Look up stored verified functions or use function summary
 			// Send to a solver to verify
 			// Store verified obligations
@@ -100,16 +116,17 @@ struct VariableTracker{
 	string getVerifToken(bool isClassical, string var){
 		if (isClassical){
 			const auto s = classicalVars[var];
-			return cast(string)s~"_"~text(timer[s]);
+			return "c"~cast(string)s~"_t"~text(timer[s]);
 		}else{
 			const auto s = quantumVars[var];
-			return cast(string)s~"_"~text(timer[s]);
+			return "q"~cast(string)s~"_t"~text(timer[s]);
 		}
 	}
 }
 
 struct VerInterpreter(VariableTracker){
 	bool verified;
+	VariableTracker tracker;
 	this(bool verified){
 		this.verified = verified;
 	}
@@ -124,13 +141,14 @@ struct VerInterpreter(VariableTracker){
 	// 	this.hasFrame=hasFrame;
 	// }
 
+	// TODO: Implement properly
 	void fetchFunctions(FunctionDef[string] defs){
-		foreach(func_name, def;defs){
-			CompoundExp statements = def.body_;
-			foreach(s; statements.s){
-				this.verifStm(s);
-			}
-		}
+		// foreach(func_name, def;defs){
+		// 	CompoundExp statements = def.body_;
+		// 	foreach(s; statements.s){
+		// 		this.verifStm(s);
+		// 	}
+		// }
 	}
 
 	void verifStm(Expression e){
@@ -149,7 +167,7 @@ struct VerInterpreter(VariableTracker){
 			auto de=cast(DefineExp)nde.initializer;
 			verifStm2(de);
 		}else if(auto ae=cast(AssignExp)e){
-			auto lhs=ae.e1,rhs=/*runExp*/(ae.e2);
+			auto lhs=ae.e1,rhs=ae.e2;
 			writeln(lhs,":", rhs);
 		}else if(auto ae=cast(DefineExp)e){
 			if(ae.isSwap){
@@ -157,7 +175,8 @@ struct VerInterpreter(VariableTracker){
 				enforce(!!tpl);
 				writeln(tpl.e[0], "<->", tpl.e[1]);
 			}else{
-				auto lhs=ae.e1,rhs=/*runExp*/(ae.e2);
+				auto lhs=ae.e1,rhs=ae.e2;
+				verifExp(rhs);
 				writeln(lhs,"=", rhs);
 			}
 		}
@@ -199,17 +218,42 @@ struct VerInterpreter(VariableTracker){
 
 	void verifExp(Expression e){
 	// 	if(!qstate.state.length) return QState.Value.init;
-	// Handle errors here
 		void doIt()(Expression e){
+			// TODO: errors - try, catch
 			doIt2(e);
 		}
 	// 	// TODO: get rid of code duplication
 		void doIt2(Expression e){
 	// 		if(e.type == typeTy) return QState.typeValue; // TODO: get rid of this
-	// 		if(auto id=cast(Identifier)e){
-	// 		}
-	// 		if(auto fe=cast(FieldExp)e){
-	// 		}
+			if(auto id=cast(Identifier)e){
+				if(id.substitute){
+					if(auto vd=cast(VarDecl)id.meaning)
+						doIt2(vd.initializer);
+				}
+				// This changes qstate which affects CallExp cases
+				// auto r=lookupMeaning(qstate,id);
+				// enforce(r.isValid,"unsupported");
+				// return r;
+				writeln("id ", id.meaning);
+				return;
+			}
+			if(auto fe=cast(FieldExp)e){
+				enforce(fe.type.isClassical||fe.constLookup);
+				if(isBuiltIn(fe)){
+					if(auto at=cast(ArrayTy)fe.e.type){
+						assert(fe.f.name=="length");
+						writeln("bin-Field");
+						doIt(fe.e);
+						// enforce(r.tag==QState.Value.Tag.array_);
+						// return qstate.makeInteger(ℤ(r.array_.length));
+					}
+				}
+				// TODO: non-constant field lookup
+				// return qstate.readField(doIt(fe.e),fe.f.name,true);
+				writeln("Field");
+				doIt(fe.e);
+				return;
+			}
 	// 		if(auto ae=cast(AddExp)e) return doIt(ae.e1)+doIt(ae.e2);
 	// 		if(auto me=cast(SubExp)e) return doIt(me.e1)-doIt(me.e2);
 	// 		if(auto me=cast(NSubExp)e){
@@ -229,91 +273,106 @@ struct VerInterpreter(VariableTracker){
 	// 		if(auto ume=cast(UNotExp)e) return doIt(ume.e).eqZ;
 	// 		if(auto ume=cast(UBitNotExp)e) return ~doIt(ume.e);
 	// 		if(auto le=cast(LambdaExp)e) return qstate.makeFunction(le.fd);
-	// 		if(auto ce=cast(CallExp)e){
-	// 			auto id=cast(Identifier)unwrap(ce.e);
-	// 			auto fe=cast(FieldExp)unwrap(ce.e);
-	// 			QState.Value thisExp=QState.nullValue;
-	// 			if(fe){
-	// 				id=fe.f;
-	// 				thisExp=doIt(fe.e);
-	// 			}
-	// 			if(id){
-	// 				if(!fe && isBuiltIn(id)){
-	// 					switch(id.name){
-	// 						static if(language==silq){
-	// 							case "quantumPrimitive":
-	// 								enforce(0,"quantum primitive cannot be used as first-class value");
-	// 								assert(0);
-	// 							case "__show","__query":
-	// 								return qstate.makeTuple(ast.type.unit,[]);
-	// 						}
-	// 						default:
-	// 							enforce(0,text("TODO: ",id.name));
-	// 							assert(0);
-	// 					}
-	// 				}
-	// 			}else if(auto ce2=cast(CallExp)unwrap(ce.e)){
-	// 				if(auto id2=cast(Identifier)unwrap(ce2.e)){
-	// 					if(isBuiltIn(id2)){
-	// 						switch(id2.name){
-	// 							static if(language==silq) case "quantumPrimitive":
-	// 								switch(getQuantumOp(ce2.arg)){
-	// 									case "dup": enforce(0,"quantumPrimitive(\"dup\")[τ] cannot be used as first-class value"); assert(0);
-	// 									case "array": enforce(0,"quantumPrimitive(\"array\")[τ] cannot be used as first-class value"); assert(0);
-	// 									case "vector": enforce(0,"quantumPrimitive(\"vector\")[τ] cannot be used as first-class value"); assert(0);
-	// 									case "reverse":  enforce(0,"quantumPrimitive(\"reverse\")[τ] cannot be used as first-class value"); assert(0);
-	// 									case "M": enforce(0,"quantumPrimitive(\"M\")[τ] cannot be used as first-class value"); assert(0);
-	// 									case "H": return qstate.H(doIt(ce.arg));
-	// 									case "X": return qstate.X(doIt(ce.arg));
-	// 									case "Y": return qstate.Y(doIt(ce.arg));
-	// 									case "Z": return qstate.Z(doIt(ce.arg));
-	// 									case "P": return qstate.phase(doIt(ce.arg));
-	// 									case "rX": return qstate.rX(doIt(ce.arg));
-	// 									case "rY": return qstate.rY(doIt(ce.arg));
-	// 									case "rZ": return qstate.rZ(doIt(ce.arg));
-	// 									default: break;
-	// 								}
-	// 								break;
-	// 							default:
-	// 								break;
-	// 						}
-	// 					}
-	// 				}else if(auto ce3=cast(CallExp)unwrap(ce2.e)){
-	// 					if(auto id3=cast(Identifier)unwrap(ce3.e)){
-	// 						if(isBuiltIn(id3)){
-	// 							switch(id3.name){
-	// 								static if(language==silq) case "quantumPrimitive":
-	// 									switch(getQuantumOp(ce3.arg)){
-	// 										case "dup": return doIt(ce.arg).dup(qstate);
-	// 										case "array": return qstate.array_(ce.type,doIt(ce.arg));
-	// 										case "vector": return qstate.vector(ce.type,doIt(ce.arg));
-	// 										case "reverse": enforce(0); break;
-	// 										case "M": return qstate.measure(doIt(ce.arg));
-	// 										default: break;
-	// 									}
-	// 									break;
-	// 								default:
-	// 									break;
-	// 							}
-	// 						}
-	// 					}
-	// 				}
-	// 			}
-	// 			auto fun=doIt(ce.e), arg=doIt(ce.arg);
-	// 			return qstate.call(fun,arg,ce.type,ce.loc);
-	// 		}
+			if(auto ce=cast(CallExp)e){
+				auto id=cast(Identifier)unwrap(ce.e);
+				auto fe=cast(FieldExp)unwrap(ce.e);
+				writeln("call");
+				if(fe){
+					id=fe.f;
+					doIt(fe.e);
+				}
+				if(id){
+					if(!fe && isBuiltIn(id)){
+						switch(id.name){
+							static if(language==silq){
+								case "quantumPrimitive":
+									enforce(0,"quantum primitive cannot be used as first-class value");
+									assert(0);
+								// case "__show","__query":
+									// return qstate.makeTuple(ast.type.unit,[]);
+							}
+							default:
+								enforce(0,text("TODO: ",id.name));
+								assert(0);
+						}
+					}
+				}else if(auto ce2=cast(CallExp)unwrap(ce.e)){
+					if(auto id2=cast(Identifier)unwrap(ce2.e)){
+						if(isBuiltIn(id2)){
+							switch(id2.name){
+								static if(language==silq) case "quantumPrimitive":
+									switch(getQuantumOp(ce2.arg)){
+										// case "dup": enforce(0,"quantumPrimitive(\"dup\")[τ] cannot be used as first-class value"); assert(0);
+										// case "array": enforce(0,"quantumPrimitive(\"array\")[τ] cannot be used as first-class value"); assert(0);
+										// case "vector": enforce(0,"quantumPrimitive(\"vector\")[τ] cannot be used as first-class value"); assert(0);
+										// case "reverse":  enforce(0,"quantumPrimitive(\"reverse\")[τ] cannot be used as first-class value"); assert(0);
+										// case "M": enforce(0,"quantumPrimitive(\"M\")[τ] cannot be used as first-class value"); assert(0);
+										case "H": writeln("H");doIt(ce.arg);return ;
+										case "X": writeln("X");doIt(ce.arg);return ;
+										case "Y": writeln("Y");doIt(ce.arg);return ;
+										case "Z": writeln("Z");doIt(ce.arg);return ;
+										// case "P": return qstate.phase(doIt(ce.arg));
+										// case "rX": return qstate.rX(doIt(ce.arg));
+										// case "rY": return qstate.rY(doIt(ce.arg));
+										// case "rZ": return qstate.rZ(doIt(ce.arg));
+										default: break;
+									}
+									break;
+								default:
+									break;
+							}
+						}
+					}else if(auto ce3=cast(CallExp)unwrap(ce2.e)){
+						if(auto id3=cast(Identifier)unwrap(ce3.e)){
+							if(isBuiltIn(id3)){
+								switch(id3.name){
+									static if(language==silq) case "quantumPrimitive":
+										switch(getQuantumOp(ce3.arg)){
+								// 			case "dup": return doIt(ce.arg).dup(qstate);
+								// 			case "array": return qstate.array_(ce.type,doIt(ce.arg));
+								// 			case "vector": return qstate.vector(ce.type,doIt(ce.arg));
+								// 			case "reverse": enforce(0); break;
+								// 			case "M": return qstate.measure(doIt(ce.arg));
+											default: break;
+										}
+										break;
+									default:
+										break;
+								}
+							}
+						}
+					}
+				}
+				// auto fun=doIt(ce.e), arg=doIt(ce.arg);
+				// return qstate.call(fun,arg,ce.type,ce.loc);
+				doIt(ce.e);
+				doIt(ce.arg);
+				return;
+			}
 	// 		if(auto fe=cast(ForgetExp)e){
 	// 		}
 	// 		if(auto idx=cast(IndexExp)e){
 	// 		}
 	// 		if(auto sl=cast(SliceExp)e){
 	// 		}
-	// 		if(auto le=cast(LiteralExp)e){
-	// 		}
+			if(auto le=cast(LiteralExp)e){
+				writeln("lit");
+				return;
+			}
 	// 		if(auto ite=cast(IteExp)e){
 	// 		}else if(auto tpl=cast(TupleExp)e){
 	// 		}else if(auto arr=cast(ArrayExp)e){
 	// 		}else if(auto ae=cast(AssertExp)e){
+			else if(auto tae=cast(TypeAnnotationExp)e){
+				// if(tae.e.type==tae.type) return doIt(tae.e);
+				// bool consume=!tae.constLookup;
+				// auto r=convertTo(doIt(tae.e),tae.type,consume);
+				// if(tae.constLookup) r=r.consumeOnRead();
+				// return r;
+				writeln("TAE");
+				doIt(tae.e);
+				return;
+			}
 	// 		}else if(cast(Type)e)
 	// 		else{
 	// 			enum common=q{
@@ -345,8 +404,8 @@ struct VerInterpreter(VariableTracker){
 	// 				return e1.neq(e2);
 	// 			}
 	// 		}
-	// 		enforce(0,text("TODO: ",e," ",e.type));
-	// 		assert(0);
+			enforce(0,text("TODO: ",e," ",e.type));
+			assert(0);
 		}
 		doIt(e);
 	}
