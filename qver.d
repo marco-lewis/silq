@@ -22,7 +22,7 @@ import std.stdio, std.exception;
 
 import ast.expression,ast.declaration,ast.type;
 import ast.lexer,ast.semantic_,ast.reverse,ast.scope_,ast.error;
-import util;
+import util.hashtable;
 
 class QVer{
 	this(string sourceFile){
@@ -32,7 +32,7 @@ class QVer{
 		// Create an interpreter
 		// Job: read a function and convert it to a proof obligation (with any summaries that have been made)
 		// Either call scripts or create SMTLIB in D
-		auto interpreter=VerInterpreter!bool(false);
+		auto interpreter=VerInterpreter!VariableTracker(false);
 		writeln("Interpreter made");
 		
 		// Collect all functions needed from other files
@@ -59,7 +59,53 @@ private:
 	string sourceFile;
 }
 
-struct VerInterpreter(Bool){
+// Keep track of variable names (from memory)
+struct VariableTracker{
+	alias Record=HashMap!(string,string,(a,b)=>a==b,(a)=>typeid(a).getHash(&a));
+	alias Timer=HashMap!(string,int,(a,b)=>a==b,(a)=>typeid(a).getHash(&a));
+	string[string] quantumVars;
+	string[string] classicalVars;
+	int[string] timer;
+
+	void initializeVar(bool isClassical, string var){
+		if (isClassical){
+			classicalVars[var] = var;
+		}else{
+			quantumVars[var] = var;
+		}
+		timer[var] = 0;
+	}
+
+	void updateTimer(bool isClassical, string var){
+		if (isClassical){
+			s = classicalVars[var];
+		}else{
+			s = quantumlVars[var];
+		}
+		timer[s] += 1;
+	}
+
+	void addVar(bool isClassical, string newVar, string oldVar){
+		if (isClassical){
+			s = classicalVars[oldVar];
+			classicalVars[newVar] = s;
+		}else{
+			s = quantumlVars[oldVar];
+			quantumVars[newVar] = s;
+		}
+	}
+
+	string getVerifToken(bool isClassical, string var){
+		if (isClassical){
+			s = classicalVars[var];
+		}else{
+			s = quantumlVars[var];
+		}
+		return s + "_" + timer[s];
+	}
+}
+
+struct VerInterpreter(VariableTracker){
 	bool verified;
 	this(bool verified){
 		this.verified = verified;
