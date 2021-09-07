@@ -162,15 +162,15 @@ struct VerInterpreter(VariableTracker){
 			}else{
 				auto lhs=ae.e1.toString(),rhs=ae.e2;
 				auto r=verifExp(rhs);
-				writeln("r: ", r);
 				writeln(lhs,"=", rhs);
 				if (!tracker.isVar(lhs)){
 					tracker.initializeVar(lhs);
 				}
+				else{
+					tracker.updateTimer(lhs);
+				}
 				// Create proof obligations
 				writeln(tracker.getVerifToken(lhs), " ", r);
-				// Update timer
-				tracker.updateTimer(lhs);
 			}
 		}
 	// else if(auto ce=cast(CatAssignExp)e){
@@ -189,16 +189,19 @@ struct VerInterpreter(VariableTracker){
 	// 			if(cast(BitAndAssignExp)e) ;
 	// 			assert(0);
 	// 		}
-	// 	}else if(auto call=cast(CallExp)e){
+	//  }else if(auto call=cast(CallExp)e){
 	// 	}else if(auto ce=cast(CompoundExp)e){
 	// 	}else if(auto ite=cast(IteExp)e){
 	// 	}else if(auto re=cast(RepeatExp)e){
 	// 	}else if(auto fe=cast(ForExp)e){
 	// 	}else if(auto we=cast(WhileExp)e){
-	// 	}else if(auto re=cast(ReturnExp)e){
+		// }
+		else if(auto re=cast(ReturnExp)e){
+			writeln("Get files for ", re);
+		}
 	// 	}else if(auto ae=cast(AssertExp)e){
-	// 	}else if(auto oe=cast(ObserveExp)e){
-	// 	}else if(auto fe=cast(ForgetExp)e){
+	//  }else if(auto oe=cast(ObserveExp)e){ -- ignore (not implemented in Silq)
+	//  }else if(auto fe=cast(ForgetExp)e){
 	// 	}else if(auto ce=cast(CommaExp)e){
 	// 	}else if(auto fd=cast(FunctionDef)e){
 	// 	}else if(cast(Declaration)e){
@@ -228,8 +231,8 @@ struct VerInterpreter(VariableTracker){
 				// auto r=lookupMeaning(qstate,id);
 				// enforce(r.isValid,"unsupported");
 				// return r;
-				writeln("id ", id.meaning);
-				return "";
+				writeln("id ", id);
+				return id.toString();
 				// return tracker.getVerifToken(false, id.name);
 			}
 			if(auto fe=cast(FieldExp)e){
@@ -281,6 +284,7 @@ struct VerInterpreter(VariableTracker){
 				}
 				if(id){
 					writeln("id");
+					// Ignore
 					if(!fe && isBuiltIn(id)){
 						switch(id.name){
 							static if(language==silq){
@@ -346,9 +350,9 @@ struct VerInterpreter(VariableTracker){
 				}
 				// auto fun=doIt(ce.e), arg=doIt(ce.arg);
 				// return qstate.call(fun,arg,ce.type,ce.loc);
-				doIt(ce.e);
-				doIt(ce.arg);
-				return "";
+				auto op = doIt(ce.e);
+				auto arg = doIt(ce.arg);
+				return op ~ ":" ~ tracker.getVerifToken(arg);
 			}
 	// 		if(auto fe=cast(ForgetExp)e){
 	// 		}
