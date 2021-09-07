@@ -81,52 +81,37 @@ struct VariableTracker{
 	alias Record=HashMap!(string,string,(a,b)=>a==b,(a)=>typeid(a).getHash(&a));
 	alias Timer=HashMap!(string,int,(a,b)=>a==b,(a)=>typeid(a).getHash(&a));
 	string[string] quantumVars;
-	string[string] classicalVars;
 	int[string] timer;
 
-	void initializeVar(bool isClassical, string var){
-		if (isClassical){
-			classicalVars[var] = var;
-		}else{
-			quantumVars[var] = var;
-		}
+	void initializeVar(string var){
+		quantumVars[var] = var;
 		timer[var] = 0;
 	}
 
-	void updateTimer(bool isClassical, string var){
-		if (isClassical){
-			const auto s = classicalVars[var];
-			timer[s] += 1;
-		}else{
-			const auto s = quantumVars[var];
-			timer[s] += 1;
-		}
+	void updateTimer(string var){
+		const auto s = quantumVars[var];
+		timer[s] += 1;
 	}
 
-	void addVar(bool isClassical, string newVar, string oldVar){
-		if (isClassical){
-			const auto s = classicalVars[oldVar];
-			classicalVars[newVar] = s;
-		}else{
-			const auto s = quantumVars[oldVar];
-			quantumVars[newVar] = s;
-		}
+	void addVar(string newVar, string oldVar){
+		const auto s = quantumVars[oldVar];
+		quantumVars[newVar] = s;
 	}
 
-	string getVerifToken(bool isClassical, string var){
-		if (isClassical){
-			const auto s = classicalVars[var];
-			return "c"~cast(string)s~"_t"~text(timer[s]);
-		}else{
-			const auto s = quantumVars[var];
-			return "q"~cast(string)s~"_t"~text(timer[s]);
-		}
+	bool isVar(string var){
+		return (var in quantumVars) !is null;
+	}
+
+	string getVerifToken(string var){
+		const auto s = quantumVars[var];
+		return "q"~cast(string)s~"_t"~text(timer[s]);
 	}
 }
 
 struct VerInterpreter(VariableTracker){
 	bool verified;
 	VariableTracker tracker;
+
 	this(bool verified){
 		this.verified = verified;
 	}
@@ -153,7 +138,7 @@ struct VerInterpreter(VariableTracker){
 
 	void verifStm(Expression e){
 		// TODO: Error - try and catch
-		verifStm2(e);
+		return verifStm2(e);
 	}
 	void verifStm2(Expression e){
 	// 	if(opt.trace && !isInPrelude(functionDef)){
@@ -175,9 +160,17 @@ struct VerInterpreter(VariableTracker){
 				enforce(!!tpl);
 				writeln(tpl.e[0], "<->", tpl.e[1]);
 			}else{
-				auto lhs=ae.e1,rhs=ae.e2;
-				verifExp(rhs);
+				auto lhs=ae.e1.toString(),rhs=ae.e2;
+				auto r=verifExp(rhs);
+				writeln("r: ", r);
 				writeln(lhs,"=", rhs);
+				if (!tracker.isVar(lhs)){
+					tracker.initializeVar(lhs);
+				}
+				// Create proof obligations
+				writeln(tracker.getVerifToken(lhs), " ", r);
+				// Update timer
+				tracker.updateTimer(lhs);
 			}
 		}
 	// else if(auto ce=cast(CatAssignExp)e){
@@ -210,32 +203,34 @@ struct VerInterpreter(VariableTracker){
 	// 	}else if(auto fd=cast(FunctionDef)e){
 	// 	}else if(cast(Declaration)e){
 	// 		// do nothing
-	// 	}else{
-	// 		enforce(0,text("TODO: ",e));
-	// 	}
+		// }
+		else{
+			enforce(0,text("StmtTODO: ",e));
+		}
 	}
 
 
-	void verifExp(Expression e){
+	string verifExp(Expression e){
 	// 	if(!qstate.state.length) return QState.Value.init;
-		void doIt()(Expression e){
+		string doIt()(Expression e){
 			// TODO: errors - try, catch
-			doIt2(e);
+			return doIt2(e);
 		}
 	// 	// TODO: get rid of code duplication
-		void doIt2(Expression e){
+		string doIt2(Expression e){
 	// 		if(e.type == typeTy) return QState.typeValue; // TODO: get rid of this
 			if(auto id=cast(Identifier)e){
 				if(id.substitute){
 					if(auto vd=cast(VarDecl)id.meaning)
-						doIt2(vd.initializer);
+						auto r = doIt2(vd.initializer);
 				}
 				// This changes qstate which affects CallExp cases
 				// auto r=lookupMeaning(qstate,id);
 				// enforce(r.isValid,"unsupported");
 				// return r;
 				writeln("id ", id.meaning);
-				return;
+				return "";
+				// return tracker.getVerifToken(false, id.name);
 			}
 			if(auto fe=cast(FieldExp)e){
 				enforce(fe.type.isClassical||fe.constLookup);
@@ -244,6 +239,7 @@ struct VerInterpreter(VariableTracker){
 						assert(fe.f.name=="length");
 						writeln("bin-Field");
 						doIt(fe.e);
+						return "";
 						// enforce(r.tag==QState.Value.Tag.array_);
 						// return qstate.makeInteger(ℤ(r.array_.length));
 					}
@@ -252,7 +248,7 @@ struct VerInterpreter(VariableTracker){
 				// return qstate.readField(doIt(fe.e),fe.f.name,true);
 				writeln("Field");
 				doIt(fe.e);
-				return;
+				return "";
 			}
 	// 		if(auto ae=cast(AddExp)e) return doIt(ae.e1)+doIt(ae.e2);
 	// 		if(auto me=cast(SubExp)e) return doIt(me.e1)-doIt(me.e2);
@@ -276,12 +272,15 @@ struct VerInterpreter(VariableTracker){
 			if(auto ce=cast(CallExp)e){
 				auto id=cast(Identifier)unwrap(ce.e);
 				auto fe=cast(FieldExp)unwrap(ce.e);
+				string thisExp = "";
 				writeln("call");
 				if(fe){
+					writeln("fe");
 					id=fe.f;
-					doIt(fe.e);
+					thisExp=doIt(fe.e);
 				}
 				if(id){
+					writeln("id");
 					if(!fe && isBuiltIn(id)){
 						switch(id.name){
 							static if(language==silq){
@@ -292,11 +291,12 @@ struct VerInterpreter(VariableTracker){
 									// return qstate.makeTuple(ast.type.unit,[]);
 							}
 							default:
-								enforce(0,text("TODO: ",id.name));
+								enforce(0,text("quantTODO: ",id.name));
 								assert(0);
 						}
 					}
 				}else if(auto ce2=cast(CallExp)unwrap(ce.e)){
+					writeln("ce2");
 					if(auto id2=cast(Identifier)unwrap(ce2.e)){
 						if(isBuiltIn(id2)){
 							switch(id2.name){
@@ -307,10 +307,10 @@ struct VerInterpreter(VariableTracker){
 										// case "vector": enforce(0,"quantumPrimitive(\"vector\")[τ] cannot be used as first-class value"); assert(0);
 										// case "reverse":  enforce(0,"quantumPrimitive(\"reverse\")[τ] cannot be used as first-class value"); assert(0);
 										// case "M": enforce(0,"quantumPrimitive(\"M\")[τ] cannot be used as first-class value"); assert(0);
-										case "H": writeln("H");doIt(ce.arg);return ;
-										case "X": writeln("X");doIt(ce.arg);return ;
-										case "Y": writeln("Y");doIt(ce.arg);return ;
-										case "Z": writeln("Z");doIt(ce.arg);return ;
+										case "H": writeln("H");doIt(ce.arg);return "";
+										case "X": writeln("X");doIt(ce.arg);return "";
+										case "Y": writeln("Y");doIt(ce.arg);return "";
+										case "Z": writeln("Z");doIt(ce.arg);return "";
 										// case "P": return qstate.phase(doIt(ce.arg));
 										// case "rX": return qstate.rX(doIt(ce.arg));
 										// case "rY": return qstate.rY(doIt(ce.arg));
@@ -323,6 +323,7 @@ struct VerInterpreter(VariableTracker){
 							}
 						}
 					}else if(auto ce3=cast(CallExp)unwrap(ce2.e)){
+						writeln("ce3");
 						if(auto id3=cast(Identifier)unwrap(ce3.e)){
 							if(isBuiltIn(id3)){
 								switch(id3.name){
@@ -347,7 +348,7 @@ struct VerInterpreter(VariableTracker){
 				// return qstate.call(fun,arg,ce.type,ce.loc);
 				doIt(ce.e);
 				doIt(ce.arg);
-				return;
+				return "";
 			}
 	// 		if(auto fe=cast(ForgetExp)e){
 	// 		}
@@ -356,8 +357,9 @@ struct VerInterpreter(VariableTracker){
 	// 		if(auto sl=cast(SliceExp)e){
 	// 		}
 			if(auto le=cast(LiteralExp)e){
-				writeln("lit");
-				return;
+				// Need to handle different numbers here (rational, reals etc.)
+				writeln("lit ", le);
+				return le.toString();
 			}
 	// 		if(auto ite=cast(IteExp)e){
 	// 		}else if(auto tpl=cast(TupleExp)e){
@@ -369,9 +371,9 @@ struct VerInterpreter(VariableTracker){
 				// auto r=convertTo(doIt(tae.e),tae.type,consume);
 				// if(tae.constLookup) r=r.consumeOnRead();
 				// return r;
-				writeln("TAE");
-				doIt(tae.e);
-				return;
+				writeln("TAE ", tae);
+				auto r=doIt(tae.e);
+				return r;
 			}
 	// 		}else if(cast(Type)e)
 	// 		else{
@@ -404,10 +406,10 @@ struct VerInterpreter(VariableTracker){
 	// 				return e1.neq(e2);
 	// 			}
 	// 		}
-			enforce(0,text("TODO: ",e," ",e.type));
+			enforce(0,text("ExpTODO: ",e," ",e.type));
 			assert(0);
 		}
-		doIt(e);
+		return doIt(e);
 	}
 
 	// void run(ref QState retState){
