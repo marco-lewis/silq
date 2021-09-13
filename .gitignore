@@ -19,3 +19,5 @@ dmd*
 ldc2-*
 docker-ldc-darwin
 **#*#
+smtlib
+verif-silq
