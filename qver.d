@@ -64,6 +64,7 @@ class QVer{
 			auto exprCon = new ExprConstructor();
 			auto writer = new SMTWriter(func_name);
 			writer.makeFile();
+			writer.addLine(exprCon.declareSqrt());
 			CompoundExp statements = def.body_;
 			foreach (s; statements.s){
 				interpreter.verifStm(s, exprCon, writer);
@@ -111,7 +112,7 @@ struct VariableTracker{
 
 	string getVerifToken(string var){
 		const auto s = quantumVars[var];
-		return "q"~cast(string)s~"_t"~text(timer[s]);
+		return cast(string)s~"_t"~text(timer[s]);
 	}
 }
 
@@ -180,8 +181,9 @@ struct VerInterpreter(VariableTracker){
 					tracker.updateTimer(lhs);
 				}
 				// Create proof obligations
-				auto str = exprCon.declareQubit(lhs);
-				str ~= exprCon.assignQubit(tracker.getVerifToken(lhs), r);
+				auto ltok = tracker.getVerifToken(lhs);
+				auto str = exprCon.declareQubit(ltok);
+				str ~= exprCon.assignQubit(ltok, r);
 				writer.addLine(str);
 			}
 		}
