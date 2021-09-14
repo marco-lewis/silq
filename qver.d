@@ -34,6 +34,8 @@ import ast.expression,ast.declaration,ast.type;
 import ast.lexer,ast.semantic_,ast.reverse,ast.scope_,ast.error;
 import util;
 
+import smtwriter, exprconstructor;
+
 import std.random, sample;
 import std.complex, std.math;
 
@@ -57,14 +59,19 @@ class QVer{
 		// For each function
 		foreach(func_name, def;defs){
 			writeln(func_name);
+
 			// Generate proof obligations through interpreter
+			auto exprCon = new ExprConstructor();
+			auto writer = new SMTWriter(func_name);
+			writer.makeFile();
 			CompoundExp statements = def.body_;
 			foreach (s; statements.s){
-				interpreter.verifStm(s);
+				interpreter.verifStm(s, exprCon, writer);
 			}
 			// Look up stored verified functions or use function summary
 			// Send to a solver to verify
 			// Store verified obligations
+			writer.exitFile();
 		}
 		writeln("Proof obligations generated");
 		// Read result and give information
@@ -111,6 +118,8 @@ struct VariableTracker{
 struct VerInterpreter(VariableTracker){
 	bool verified;
 	VariableTracker tracker;
+	ExprConstructor exprCon;
+	SMTWriter writer;
 
 	this(bool verified){
 		this.verified = verified;
@@ -136,9 +145,11 @@ struct VerInterpreter(VariableTracker){
 		// }
 	}
 
-	void verifStm(Expression e){
+	void verifStm(Expression e, ExprConstructor exprCon, SMTWriter writer){
 		// TODO: Error - try and catch
-		return verifStm2(e);
+		this.exprCon = exprCon;
+		this.writer = writer;
+		verifStm2(e);
 	}
 	void verifStm2(Expression e){
 	// 	if(opt.trace && !isInPrelude(functionDef)){
@@ -162,7 +173,6 @@ struct VerInterpreter(VariableTracker){
 			}else{
 				auto lhs=ae.e1.toString(),rhs=ae.e2;
 				auto r=verifExp(rhs);
-				writeln(lhs,"=", rhs);
 				if (!tracker.isVar(lhs)){
 					tracker.initializeVar(lhs);
 				}
@@ -170,7 +180,9 @@ struct VerInterpreter(VariableTracker){
 					tracker.updateTimer(lhs);
 				}
 				// Create proof obligations
-				writeln(tracker.getVerifToken(lhs), " ", r);
+				auto str = exprCon.declareQubit(lhs);
+				str ~= exprCon.assignQubit(tracker.getVerifToken(lhs), r);
+				writer.addLine(str);
 			}
 		}
 	// else if(auto ce=cast(CatAssignExp)e){
@@ -197,7 +209,7 @@ struct VerInterpreter(VariableTracker){
 	// 	}else if(auto we=cast(WhileExp)e){
 		// }
 		else if(auto re=cast(ReturnExp)e){
-			writeln("Get files for ", re);
+			writeln("Get obligations for ", re);
 		}
 	// 	}else if(auto ae=cast(AssertExp)e){
 	//  }else if(auto oe=cast(ObserveExp)e){ -- ignore (not implemented in Silq)
@@ -213,26 +225,28 @@ struct VerInterpreter(VariableTracker){
 	}
 
 
-	string verifExp(Expression e){
+	string[] verifExp(Expression e){
 	// 	if(!qstate.state.length) return QState.Value.init;
-		string doIt()(Expression e){
+		string[] doIt()(Expression e){
 			// TODO: errors - try, catch
 			return doIt2(e);
 		}
 	// 	// TODO: get rid of code duplication
-		string doIt2(Expression e){
+		string[] doIt2(Expression e){
 	// 		if(e.type == typeTy) return QState.typeValue; // TODO: get rid of this
 			if(auto id=cast(Identifier)e){
 				if(id.substitute){
-					if(auto vd=cast(VarDecl)id.meaning)
+					if(auto vd=cast(VarDecl)id.meaning){
+						writeln("VarDecl");
 						auto r = doIt2(vd.initializer);
+					}
 				}
 				// This changes qstate which affects CallExp cases
 				// auto r=lookupMeaning(qstate,id);
 				// enforce(r.isValid,"unsupported");
 				// return r;
 				writeln("id ", id);
-				return id.toString();
+				return [id.toString()];
 				// return tracker.getVerifToken(false, id.name);
 			}
 			if(auto fe=cast(FieldExp)e){
@@ -242,7 +256,7 @@ struct VerInterpreter(VariableTracker){
 						assert(fe.f.name=="length");
 						writeln("bin-Field");
 						doIt(fe.e);
-						return "";
+						return [];
 						// enforce(r.tag==QState.Value.Tag.array_);
 						// return qstate.makeInteger(ℤ(r.array_.length));
 					}
@@ -251,7 +265,7 @@ struct VerInterpreter(VariableTracker){
 				// return qstate.readField(doIt(fe.e),fe.f.name,true);
 				writeln("Field");
 				doIt(fe.e);
-				return "";
+				return [];
 			}
 	// 		if(auto ae=cast(AddExp)e) return doIt(ae.e1)+doIt(ae.e2);
 	// 		if(auto me=cast(SubExp)e) return doIt(me.e1)-doIt(me.e2);
@@ -275,84 +289,19 @@ struct VerInterpreter(VariableTracker){
 			if(auto ce=cast(CallExp)e){
 				auto id=cast(Identifier)unwrap(ce.e);
 				auto fe=cast(FieldExp)unwrap(ce.e);
-				string thisExp = "";
 				writeln("call");
-				if(fe){
-					writeln("fe");
-					id=fe.f;
-					thisExp=doIt(fe.e);
-				}
-				if(id){
-					writeln("id");
-					// Ignore
-					if(!fe && isBuiltIn(id)){
-						switch(id.name){
-							static if(language==silq){
-								case "quantumPrimitive":
-									enforce(0,"quantum primitive cannot be used as first-class value");
-									assert(0);
-								// case "__show","__query":
-									// return qstate.makeTuple(ast.type.unit,[]);
-							}
-							default:
-								enforce(0,text("quantTODO: ",id.name));
-								assert(0);
-						}
-					}
-				}else if(auto ce2=cast(CallExp)unwrap(ce.e)){
-					writeln("ce2");
-					if(auto id2=cast(Identifier)unwrap(ce2.e)){
-						if(isBuiltIn(id2)){
-							switch(id2.name){
-								static if(language==silq) case "quantumPrimitive":
-									switch(getQuantumOp(ce2.arg)){
-										// case "dup": enforce(0,"quantumPrimitive(\"dup\")[τ] cannot be used as first-class value"); assert(0);
-										// case "array": enforce(0,"quantumPrimitive(\"array\")[τ] cannot be used as first-class value"); assert(0);
-										// case "vector": enforce(0,"quantumPrimitive(\"vector\")[τ] cannot be used as first-class value"); assert(0);
-										// case "reverse":  enforce(0,"quantumPrimitive(\"reverse\")[τ] cannot be used as first-class value"); assert(0);
-										// case "M": enforce(0,"quantumPrimitive(\"M\")[τ] cannot be used as first-class value"); assert(0);
-										case "H": writeln("H");doIt(ce.arg);return "";
-										case "X": writeln("X");doIt(ce.arg);return "";
-										case "Y": writeln("Y");doIt(ce.arg);return "";
-										case "Z": writeln("Z");doIt(ce.arg);return "";
-										// case "P": return qstate.phase(doIt(ce.arg));
-										// case "rX": return qstate.rX(doIt(ce.arg));
-										// case "rY": return qstate.rY(doIt(ce.arg));
-										// case "rZ": return qstate.rZ(doIt(ce.arg));
-										default: break;
-									}
-									break;
-								default:
-									break;
-							}
-						}
-					}else if(auto ce3=cast(CallExp)unwrap(ce2.e)){
-						writeln("ce3");
-						if(auto id3=cast(Identifier)unwrap(ce3.e)){
-							if(isBuiltIn(id3)){
-								switch(id3.name){
-									static if(language==silq) case "quantumPrimitive":
-										switch(getQuantumOp(ce3.arg)){
-								// 			case "dup": return doIt(ce.arg).dup(qstate);
-								// 			case "array": return qstate.array_(ce.type,doIt(ce.arg));
-								// 			case "vector": return qstate.vector(ce.type,doIt(ce.arg));
-								// 			case "reverse": enforce(0); break;
-								// 			case "M": return qstate.measure(doIt(ce.arg));
-											default: break;
-										}
-										break;
-									default:
-										break;
-								}
-							}
-						}
-					}
-				}
-				// auto fun=doIt(ce.e), arg=doIt(ce.arg);
-				// return qstate.call(fun,arg,ce.type,ce.loc);
 				auto op = doIt(ce.e);
 				auto arg = doIt(ce.arg);
-				return op ~ ":" ~ tracker.getVerifToken(arg);
+				switch(op[0]){
+					case "H": writeln("H"); return exprCon.H(tracker.getVerifToken(arg[0]));
+					case "X": writeln("X"); return exprCon.X(tracker.getVerifToken(arg[0]));
+					case "Y": writeln("Y"); return exprCon.Y(tracker.getVerifToken(arg[0]));
+					case "Z": writeln("Z"); return exprCon.Z(tracker.getVerifToken(arg[0]));
+					default: break;		
+				}
+				enforce(0,text("opTODO: ",op));
+				assert(0);
+				// return op ~ ":" ~ tracker.getVerifToken(arg);
 			}
 	// 		if(auto fe=cast(ForgetExp)e){
 	// 		}
@@ -362,8 +311,9 @@ struct VerInterpreter(VariableTracker){
 	// 		}
 			if(auto le=cast(LiteralExp)e){
 				// Need to handle different numbers here (rational, reals etc.)
+				// Also need a way to detect sizes
 				writeln("lit ", le);
-				return le.toString();
+				return exprCon.initProbs(to!int(le.toString()), 2);
 			}
 	// 		if(auto ite=cast(IteExp)e){
 	// 		}else if(auto tpl=cast(TupleExp)e){
