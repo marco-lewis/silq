@@ -248,6 +248,8 @@ struct VerInterpreter(VariableTracker){
 				// enforce(r.isValid,"unsupported");
 				// return r;
 				writeln("id ", id);
+				if (tracker.isVar(id.toString()))
+					return [tracker.getVerifToken(id.toString())];
 				return [id.toString()];
 				// return tracker.getVerifToken(false, id.name);
 			}
@@ -295,15 +297,14 @@ struct VerInterpreter(VariableTracker){
 				auto op = doIt(ce.e);
 				auto arg = doIt(ce.arg);
 				switch(op[0]){
-					case "H": writeln("H"); return exprCon.H(tracker.getVerifToken(arg[0]));
-					case "X": writeln("X"); return exprCon.X(tracker.getVerifToken(arg[0]));
-					case "Y": writeln("Y"); return exprCon.Y(tracker.getVerifToken(arg[0]));
-					case "Z": writeln("Z"); return exprCon.Z(tracker.getVerifToken(arg[0]));
-					default: break;		
+					case "H": writeln("H"); return exprCon.H(arg[0]);
+					case "X": writeln("X"); return exprCon.X(arg[0]);
+					case "Y": writeln("Y"); return exprCon.Y(arg[0]);
+					case "Z'": writeln("Z"); return exprCon.Z(arg[0]);
+					default: break;
 				}
 				enforce(0,text("opTODO: ",op));
 				assert(0);
-				// return op ~ ":" ~ tracker.getVerifToken(arg);
 			}
 	// 		if(auto fe=cast(ForgetExp)e){
 	// 		}
