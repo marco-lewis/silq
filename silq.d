@@ -49,6 +49,9 @@ int run(string path){
 	if(err.nerrors) return 1;
 	if (opt.astDump){
 		import astdump;
+		auto be = new ASTDumper(functions);
+		be.dumpAST();
+		return 0;
 	}
 	if(opt.backend==BackendType.run){
 		import qsim;
