@@ -47,6 +47,9 @@ int run(string path){
 	}
 	// TODO: add some backends
 	if(err.nerrors) return 1;
+	if (opt.astDump){
+		import astdump;
+	}
 	if(opt.backend==BackendType.run){
 		import qsim;
 		auto be=new QSim(path);
@@ -91,6 +94,7 @@ int main(string[] args){
 	foreach(x;args){
 		switch(x){
 			case "--help": writeln(help.help); return 0;
+			case "--ast-dump": opt.astDump=true; break;
 			//case "--syntax": writeln(syntax); return 0;
 			/+case "--distributions":
 				writeln(computeDistributionDocString());

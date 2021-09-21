@@ -36,6 +36,7 @@ enum IntegrationLevel{
 
 struct Options{
 	BackendType backend;
+	bool astDump=false;
 	bool plot=false;
 	string plotRange="[-10:10]";
 	string plotFile="";
