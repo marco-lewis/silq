@@ -34,18 +34,28 @@ string operation(string op, string arg){
 
 struct ASTDumper{
     FunctionDef[string] functions;
-    this(FunctionDef[string] functions){
+	string fname;
+
+    this(FunctionDef[string] functions, string fname){
         this.functions = functions;
+		this.fname = fname;
     }
 
     void dumpAST(){
+		auto funcJSON = "[\n";
         foreach (name, ops; this.functions){
+			auto str = "[\n";
             foreach (stmt; ops.body_.s){
-                auto s = dumpStm(stmt);
-				writeln(s);
-				parseJSON(s);
+                str ~= dumpStm(stmt)~",\n";
             }
+			str ~= "]";
+			auto jv = parseJSON(str);
+			funcJSON ~= "{\n"~jsonProp("func", "\""~name~"\"")~jsonProp("statements", str)~"},";
         }
+		funcJSON ~= "]";
+		auto jv = parseJSON(funcJSON);
+		import std.file: write;
+		write(this.fname, funcJSON);
     }
 
     string dumpStm(Expression e){
@@ -196,7 +206,7 @@ struct ASTDumper{
 	// 		}else if(auto ae=cast(AssertExp)e){
 			else if(auto tae=cast(TypeAnnotationExp)e){
 				if(tae.e.type==tae.type) return doIt(tae.e);
-				bool consume=!tae.constLookup; writeln(consume);
+				bool consume=!tae.constLookup;
 				auto expr = doIt(tae.e);
                 auto props = jsonProp("expr", expr)~jsonProp("type", "\""~tae.type.toString~"\"")~jsonProp("consume", consume);
                 // if(tae.constLookup) r=r.consumeOnRead();

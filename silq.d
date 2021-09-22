@@ -49,7 +49,7 @@ int run(string path){
 	if(err.nerrors) return 1;
 	if (opt.astDump){
 		import astdump;
-		auto be = new ASTDumper(functions);
+		auto be = new ASTDumper(functions, setExtension(path,"json"));
 		be.dumpAST();
 		return 0;
 	}
