@@ -10,11 +10,18 @@ import astopt;
 import options, ast.scope_, ast.semantic_, ast.summarize;
 
 string jsonObj(string name, string props){
-    return "{\n\"expType\": \""~name~"\",\n"~props~"}";
+    return "{\n"~jsonProp("expType", "\""~name~"\"")~props~"}";
 }
 
 string jsonProp(string name, string prop){
-    return "\""~name~"\": "~prop~",\n";   
+    return "\""~name~"\": "~prop~",\n";
+}
+
+string jsonProp(string name, bool prop){
+	if (prop){
+		return "\""~name~"\": true,\n";
+	}
+	return "\""~name~"\": false,\n";
 }
 
 string lrHandSide(string lhs, string rhs){
@@ -34,7 +41,9 @@ struct ASTDumper{
     void dumpAST(){
         foreach (name, ops; this.functions){
             foreach (stmt; ops.body_.s){
-                writeln(dumpStm(stmt));
+                auto s = dumpStm(stmt);
+				writeln(s);
+				parseJSON(s);
             }
         }
     }
@@ -62,8 +71,8 @@ struct ASTDumper{
                 // TODO
                 return "";
             }else{
-            auto lhs=dumpExp(ae.e1),rhs=dumpExp(ae.e2);
-            return jsonObj("defineExp", lrHandSide(lhs, rhs));
+        		auto lhs=dumpExp(ae.e1),rhs=dumpExp(ae.e2);
+            	return jsonObj("defineExp", lrHandSide(lhs, rhs));
             }
 		}
 	// else if(auto ce=cast(CatAssignExp)e){
@@ -128,7 +137,7 @@ struct ASTDumper{
 				// auto r=lookupMeaning(qstate,id);
 				// enforce(r.isValid,"unsupported");
                 // TODO: Check
-                return jsonObj("varDecl", jsonProp("value", id.toString));
+                return jsonObj("varDecl", jsonProp("value", "\""~id.toString~"\""));
 			}
 			// if(auto fe=cast(FieldExp)e){
 			// 	enforce(fe.type.isClassical||fe.constLookup);
@@ -180,20 +189,20 @@ struct ASTDumper{
 	// 		if(auto ite=cast(IteExp)e){
 			// }
             else if(auto tpl=cast(TupleExp)e){
-				auto values="["~tpl.e.map!(e=>doIt(e)).fold!((a,b)=>a~b)~"]"; // DMD bug: map!doIt does not work
+				auto values="["~tpl.e.map!(e=>doIt(e)).fold!((a,b)=>a~",\n"~b)~"]";
 				return jsonProp("value", values);
 			}
             // else if(auto arr=cast(ArrayExp)e){
 	// 		}else if(auto ae=cast(AssertExp)e){
 			else if(auto tae=cast(TypeAnnotationExp)e){
 				if(tae.e.type==tae.type) return doIt(tae.e);
-				bool consume=!tae.constLookup;
+				bool consume=!tae.constLookup; writeln(consume);
 				auto expr = doIt(tae.e);
-                auto props = jsonProp("expr", expr)~jsonProp("type", tae.type.toString)~jsonProp("consume", "\""~consume~"\"");
+                auto props = jsonProp("expr", expr)~jsonProp("type", "\""~tae.type.toString~"\"")~jsonProp("consume", consume);
                 // if(tae.constLookup) r=r.consumeOnRead();
                 return jsonObj("typeChangeExp", props);
 			}
-	// 		}else if(cast(Type)e)
+	// 		else if(cast(Type)e)
 	// 		else{
 	// 			enum common=q{
 	// 				auto e1=doIt(b.e1),e2=doIt(b.e2);
