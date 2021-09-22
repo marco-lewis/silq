@@ -85,8 +85,11 @@ struct ASTDumper{
             	return exprObj("defineExp", lrHandSide(lhs, rhs));
             }
 		}
-	// else if(auto ce=cast(CatAssignExp)e){
-	// 	}else if(isOpAssignExp(e)){
+		else if(auto ce=cast(CatAssignExp)e){
+			auto lhs=dumpExp(ce.e1),rhs=dumpExp(ce.e2);
+			return exprObj("catAssignExp", lrHandSide(lhs, rhs));
+		}
+		// else if(isOpAssignExp(e)){
 	// 		QState.Value perform(QState.Value a,QState.Value b){
 	// 			if(cast(OrAssignExp)e) ;
 	// 			if(cast(AndAssignExp)e) ;
@@ -100,26 +103,46 @@ struct ASTDumper{
 	// 			if(cast(BitXorAssignExp)e) ;
 	// 			if(cast(BitAndAssignExp)e) ;
 	// 			assert(0);
-	// 		}
-	//  }else if(auto call=cast(CallExp)e){
-	// 	}else if(auto ce=cast(CompoundExp)e){
-	// 	}else if(auto ite=cast(IteExp)e){
-	// 	}else if(auto re=cast(RepeatExp)e){
-	// 	}else if(auto fe=cast(ForExp)e){
-	// 	}else if(auto we=cast(WhileExp)e){
-		// }
-		else if(auto re=cast(ReturnExp)e){
+			// }
+		else if(auto call=cast(CallExp)e){
+			return dumpExp(call);
+		}else if(auto ce=cast(CompoundExp)e){
+			auto str = "[\n";
+			foreach(s;ce.s) str ~= dumpStm(s)~",\n";
+			str ~= "]";
+			return exprObj("compoundExp", jsonProp("statements", str));
+		}else if(auto ite=cast(IteExp)e){
+			auto cond=dumpExp(ite.cond);
+			auto then=dumpStm(ite.then);
+			auto othw=dumpStm(ite.othw);
+			return exprObj("iteExp", jsonProp("cond", cond)~jsonProp("then", then)~jsonProp("othw", othw));
+		}else if(auto re=cast(RepeatExp)e){
+			auto rep=dumpExp(re.num);
+			auto bdy=dumpStm(re.bdy);
+			return exprObj("repeatExp", jsonProp("repeat", rep)~jsonProp("body", bdy));
+		}else if(auto fe=cast(ForExp)e){
+			auto l=dumpExp(fe.left), r=dumpExp(fe.right), s=fe.step?dumpExp(fe.step):"1", bdy=dumpStm(fe.bdy);
+			return exprObj("forExp", jsonProp("left",l)~jsonProp("right",r)~jsonProp("step",s)~jsonProp("body",bdy));
+		}else if(auto we=cast(WhileExp)e){
+			auto bdy=dumpStm(we.bdy);
+			auto cond=dumpExp(we.cond);
+			return exprObj("whileExp", jsonProp("cond",cond)~jsonProp("body", bdy));
+		}else if(auto re=cast(ReturnExp)e){
             auto value = dumpExp(re.e);
             return exprObj("returnExp", value);
+		}else if(auto ae=cast(AssertExp)e){
+			return exprObj("assertExp", jsonProp("cond", dumpExp(ae.e)));
+	 	}else if(auto oe=cast(ObserveExp)e){ // ignore (not implemented in Silq)
+		}else if(auto fe=cast(ForgetExp)e){
+			auto prop = jsonProp("var", dumpExp(fe.var));
+			if(fe.val) prop~=jsonProp("val", dumpExp(fe.val));
+			return exprObj("forgetExp", prop);
+		}else if(auto ce=cast(CommaExp)e){
+			return dumpStm(ce.e1)~",\n"~dumpStm(ce.e2);
+		}else if(auto fd=cast(FunctionDef)e){
+		}else if(cast(Declaration)e){
+			// do nothing
 		}
-	// 	}else if(auto ae=cast(AssertExp)e){
-	//  }else if(auto oe=cast(ObserveExp)e){ // ignore (not implemented in Silq)
-	//  }else if(auto fe=cast(ForgetExp)e){
-	// 	}else if(auto ce=cast(CommaExp)e){
-	// 	}else if(auto fd=cast(FunctionDef)e){
-	// 	}else if(cast(Declaration)e){
-	// 		// do nothing
-		// }
 		else{
 			enforce(0,text("StmtTODO: ",e));
 		}
@@ -147,7 +170,7 @@ struct ASTDumper{
 				// auto r=lookupMeaning(qstate,id);
 				// enforce(r.isValid,"unsupported");
                 // TODO: Check
-                return exprObj("varDecl", jsonProp("value", "\""~id.toString~"\""));
+                return "\""~id.toString~"\"";
 			}
 			// if(auto fe=cast(FieldExp)e){
 			// 	enforce(fe.type.isClassical||fe.constLookup);
