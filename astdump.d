@@ -9,7 +9,7 @@ import ast.lexer, ast.parser, ast.expression, ast.declaration, ast.error, ast.ty
 import astopt;
 import options, ast.scope_, ast.semantic_, ast.summarize;
 
-string jsonObj(string name, string props){
+string exprObj(string name, string props){
     return "{\n"~jsonProp("expType", "\""~name~"\"")~props~"}";
 }
 
@@ -75,14 +75,14 @@ struct ASTDumper{
             return dumpStm2(de);
 		}else if(auto ae=cast(AssignExp)e){
             auto lhs=dumpExp(ae.e1),rhs=dumpExp(ae.e2);
-            return jsonObj("assignExp", lrHandSide(lhs, rhs));
+            return exprObj("assignExp", lrHandSide(lhs, rhs));
         }else if(auto ae=cast(DefineExp)e){
             if(ae.isSwap){
                 // TODO
                 return "";
             }else{
         		auto lhs=dumpExp(ae.e1),rhs=dumpExp(ae.e2);
-            	return jsonObj("defineExp", lrHandSide(lhs, rhs));
+            	return exprObj("defineExp", lrHandSide(lhs, rhs));
             }
 		}
 	// else if(auto ce=cast(CatAssignExp)e){
@@ -110,7 +110,7 @@ struct ASTDumper{
 		// }
 		else if(auto re=cast(ReturnExp)e){
             auto value = dumpExp(re.e);
-            return jsonObj("returnExp", value);
+            return exprObj("returnExp", value);
 		}
 	// 	}else if(auto ae=cast(AssertExp)e){
 	//  }else if(auto oe=cast(ObserveExp)e){ // ignore (not implemented in Silq)
@@ -140,14 +140,14 @@ struct ASTDumper{
                 if(!id.meaning&&util.among(id.name,"π","pi")) return "pi";
 				if(id.substitute){
 					if(auto vd=cast(VarDecl)id.meaning){
-						return jsonObj("varDecl", doIt2(vd.initializer));
+						return exprObj("varDecl", doIt2(vd.initializer));
 					}
 				}
 				// This changes qstate which affects CallExp cases
 				// auto r=lookupMeaning(qstate,id);
 				// enforce(r.isValid,"unsupported");
                 // TODO: Check
-                return jsonObj("varDecl", jsonProp("value", "\""~id.toString~"\""));
+                return exprObj("varDecl", jsonProp("value", "\""~id.toString~"\""));
 			}
 			// if(auto fe=cast(FieldExp)e){
 			// 	enforce(fe.type.isClassical||fe.constLookup);
@@ -185,7 +185,7 @@ struct ASTDumper{
 				auto id=cast(Identifier)unwrap(ce.e);
 				auto fe=cast(FieldExp)unwrap(ce.e);
 				auto fun=doIt(ce.e), arg=doIt(ce.arg);
-				return jsonObj("callExp", operation(fun, arg));
+				return exprObj("callExp", operation(fun, arg));
 			}
 	// 		if(auto fe=cast(ForgetExp)e){
 	// 		}
@@ -194,7 +194,7 @@ struct ASTDumper{
 	// 		if(auto sl=cast(SliceExp)e){
 	// 		}
 			if(auto le=cast(LiteralExp)e){
-                return jsonObj("litExp", jsonProp("value", le.toString));
+                return exprObj("litExp", jsonProp("value", le.toString));
 			}
 	// 		if(auto ite=cast(IteExp)e){
 			// }
@@ -210,7 +210,7 @@ struct ASTDumper{
 				auto expr = doIt(tae.e);
                 auto props = jsonProp("expr", expr)~jsonProp("type", "\""~tae.type.toString~"\"")~jsonProp("consume", consume);
                 // if(tae.constLookup) r=r.consumeOnRead();
-                return jsonObj("typeChangeExp", props);
+                return exprObj("typeChangeExp", props);
 			}
 	// 		else if(cast(Type)e)
 	// 		else{
