@@ -52,19 +52,36 @@ struct ASTDumper{
     void dumpAST(){
 		auto funcJSON = "[\n";
         foreach (name, ops; this.functions){
-			auto str = "[\n";
-            foreach (stmt; ops.body_.s){
-                str ~= dumpStm(stmt)~",\n";
-            }
-			str ~= "]";
-			auto jv = parseJSON(str);
-			funcJSON ~= "{\n"~jsonProp("func", "\""~name~"\"")~jsonProp("statements", str)~"},";
+			auto str = dumpFuncStmts(ops);
+			auto args = dumpFuncArgs(ops);
+			writeln(str);
+			parseJSON(str);
+			parseJSON(args);
+			funcJSON ~= "{\n"~jsonProp("func", "\""~name~"\"")~jsonProp("args", args)~jsonProp("statements", str)~"},";
         }
 		funcJSON ~= "]";
-		auto jv = parseJSON(funcJSON);
+		funcJSON = parseJSON(funcJSON).toPrettyString; // Checks valid json is given
 		import std.file: write;
 		write(this.fname, funcJSON);
     }
+
+	string dumpFuncArgs(FunctionDef fd){
+		auto str = "[\n";
+		foreach (arg; fd.params){
+			str ~= dumpStm(arg)~",\n";
+		}
+		str ~= "]";
+		return str;
+	}
+
+	string dumpFuncStmts(FunctionDef fd){
+		auto str = "[\n";
+		foreach (stmt; fd.body_.s){
+			str ~= dumpStm(stmt)~",\n";
+		}
+		str ~= "]";
+		return str;
+	}
 
     string dumpStm(Expression e){
 		// TODO: Error - try and catch
@@ -86,8 +103,8 @@ struct ASTDumper{
             return expObj("assignExp", lrHandSide(lhs, rhs));
         }else if(auto ae=cast(DefineExp)e){
             if(ae.isSwap){
-                // TODO
-                return "";
+				auto tpl=cast(TupleExp)unwrap(ae.e2);
+                return expObj("swapExp", lrHandSide(dumpExp(tpl.e[0]), dumpExp(tpl.e[1])));
             }else{
         		auto lhs=dumpExp(ae.e1),rhs=dumpExp(ae.e2);
             	return expObj("defineExp", lrHandSide(lhs, rhs));
@@ -137,7 +154,7 @@ struct ASTDumper{
 			return expObj("whileExp", jsonProp("cond",cond)~jsonProp("body", bdy));
 		}else if(auto re=cast(ReturnExp)e){
             auto value = dumpExp(re.e);
-            return expObj("returnExp", value);
+            return expObj("returnExp", jsonProp("value", value));
 		}else if(auto ae=cast(AssertExp)e){
 			return expObj("assertExp", jsonProp("cond", dumpExp(ae.e)));
 	 	}else if(auto oe=cast(ObserveExp)e){ // ignore (not implemented as of current version Silq)
@@ -149,13 +166,14 @@ struct ASTDumper{
 			return dumpStm(ce.e1)~",\n"~dumpStm(ce.e2);
 		}else if(auto fd=cast(FunctionDef)e){
 			writeln("funcdef");
-		}else if(cast(Declaration)e){
-			// do nothing
+		}else if(auto de=cast(Declaration)e){
+			// Needs fixing
+			return expObj("declaration", jsonProp("name", dumpExp(de.name)));
 		}
 		else{
 			enforce(0,text("StmtTODO: ",e));
 		}
-        assert(0);
+		assert(0);
 	}
 
 
@@ -169,17 +187,14 @@ struct ASTDumper{
 		string doIt2(Expression e){
 	// 		if(e.type == typeTy) return QState.typeValue; // TODO: get rid of this
 			if(auto id=cast(Identifier)e){
-                if(!id.meaning&&util.among(id.name,"π","pi")) return "pi";
+                if(!id.meaning&&util.among(id.name,"π","pi")) return "\"pi\"";
 				if(id.substitute){
 					if(auto vd=cast(VarDecl)id.meaning){
-						return expObj("varDecl", doIt2(vd.initializer));
+						return expObj("varDecl", jsonProp("value", doIt2(vd.initializer)));
 					}
 				}
-				// This changes qstate which affects CallExp cases
-				// auto r=lookupMeaning(qstate,id);
-				// enforce(r.isValid,"unsupported");
                 // TODO: Check
-                return "\""~id.toString~"\"";
+                return "\""~id.toString.strip("(",")")~"\"";
 			}
 			if(auto fe=cast(FieldExp)e){
 				writeln("field");
@@ -198,7 +213,7 @@ struct ASTDumper{
 			if(auto ume=cast(UMinusExp)e) return unExp("uMinusExp", doIt(ume.e));
 			if(auto ume=cast(UNotExp)e) return unExp("uNotExp", doIt(ume.e));
 			if(auto ume=cast(UBitNotExp)e) return unExp("uBitNotExp", doIt(ume.e));
-			if(auto le=cast(LambdaExp)e) {writeln("lambda");} //return qstate.makeFunction(le.fd);
+			if(auto le=cast(LambdaExp)e) {return expObj("lambdaExp", jsonProp("args", dumpFuncArgs(le.fd))~jsonProp("statements", dumpFuncStmts(le.fd)));}
 			if(auto ce=cast(CallExp)e){
 				auto id=cast(Identifier)unwrap(ce.e);
 				auto fe=cast(FieldExp)unwrap(ce.e);
@@ -215,7 +230,7 @@ struct ASTDumper{
 				auto exp=doIt(sl.e), l=doIt(sl.l), r=doIt(sl.r);
 				return expObj("sliceExp", jsonProp("var", exp)~jsonProp("left", l)~jsonProp("right", r));
 			}if(auto le=cast(LiteralExp)e){
-                return expObj("litExp", jsonProp("value", le.toString));
+                return expObj("litExp", jsonProp("value", le.lit.str));
 			}if(auto ite=cast(IteExp)e){
 				auto cond=dumpExp(ite.cond);
 				auto then=dumpStm(ite.then);
