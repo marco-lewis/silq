@@ -54,7 +54,6 @@ struct ASTDumper{
         foreach (name, ops; this.functions){
 			auto str = dumpFuncStmts(ops);
 			auto args = dumpFuncArgs(ops);
-			writeln(str);
 			parseJSON(str);
 			parseJSON(args);
 			funcJSON ~= "{\n"~jsonProp("func", "\""~name~"\"")~jsonProp("args", args)~jsonProp("statements", str)~"},";
@@ -114,22 +113,23 @@ struct ASTDumper{
 			auto lhs=dumpExp(ce.e1),rhs=dumpExp(ce.e2);
 			return expObj("catAssignExp", lrHandSide(lhs, rhs));
 		}
-		// else if(isOpAssignExp(e)){
-	// 		QState.Value perform(QState.Value a,QState.Value b){
-	// 			if(cast(OrAssignExp)e) ;
-	// 			if(cast(AndAssignExp)e) ;
-	// 			if(cast(AddAssignExp)e) ;
-	// 			if(cast(SubAssignExp)e) ;
-	// 			if(cast(MulAssignExp)e) ;
-	// 			if(cast(DivAssignExp)e||cast(IDivAssignExp)e){}
-	// 			if(cast(ModAssignExp)e) ;
-	// 			if(cast(PowAssignExp)e){}
-	// 			if(cast(BitOrAssignExp)e) ;
-	// 			if(cast(BitXorAssignExp)e) ;
-	// 			if(cast(BitAndAssignExp)e) ;
-	// 			assert(0);
+		else if(isOpAssignExp(e)){
+			// TODO
+			// QState.Value perform(QState.Value a,QState.Value b){
+			// 	if(cast(OrAssignExp)e) ;
+			// 	if(cast(AndAssignExp)e) ;
+			// 	if(cast(AddAssignExp)e) ;
+			// 	if(cast(SubAssignExp)e) ;
+			// 	if(cast(MulAssignExp)e) ;
+			// 	if(cast(DivAssignExp)e||cast(IDivAssignExp)e){}
+			// 	if(cast(ModAssignExp)e) ;
+			// 	if(cast(PowAssignExp)e){}
+			// 	if(cast(BitOrAssignExp)e) ;
+			// 	if(cast(BitXorAssignExp)e) ;
+			// 	if(cast(BitAndAssignExp)e) ;
+			// 	assert(0);
 			// }
-		else if(auto call=cast(CallExp)e){
+		}else if(auto call=cast(CallExp)e){
 			return dumpExp(call);
 		}else if(auto ce=cast(CompoundExp)e){
 			auto str = "[\n";
@@ -165,13 +165,13 @@ struct ASTDumper{
 		}else if(auto ce=cast(CommaExp)e){
 			return dumpStm(ce.e1)~",\n"~dumpStm(ce.e2);
 		}else if(auto fd=cast(FunctionDef)e){
+			// TODO
 			writeln("funcdef");
 		}else if(auto de=cast(Declaration)e){
 			// Needs fixing
 			return expObj("declaration", jsonProp("name", dumpExp(de.name)));
-		}
-		else{
-			enforce(0,text("StmtTODO: ",e));
+		}else{
+			enforce(0,text("StmtTODO: ",e, " Type: ", e.type));
 		}
 		assert(0);
 	}
@@ -185,7 +185,6 @@ struct ASTDumper{
 		}
 	// 	// TODO: get rid of code duplication
 		string doIt2(Expression e){
-	// 		if(e.type == typeTy) return QState.typeValue; // TODO: get rid of this
 			if(auto id=cast(Identifier)e){
                 if(!id.meaning&&util.among(id.name,"π","pi")) return "\"pi\"";
 				if(id.substitute){
@@ -255,7 +254,6 @@ struct ASTDumper{
 				bool consume=!tae.constLookup;
 				auto expr = doIt(tae.e);
                 auto props = jsonProp("expr", expr)~jsonProp("type", "\""~tae.type.toString~"\"")~jsonProp("consume", consume);
-                // if(tae.constLookup) r=r.consumeOnRead();
                 return expObj("typeChangeExp", props);
 			}else if(cast(Type)e){
 				writeln("type");
@@ -289,7 +287,7 @@ struct ASTDumper{
 					return binExp("neqExp", e1, e2);
 				}
 			}
-			enforce(0,text("ExpTODO: ",e," ",e.type));
+			enforce(0,text("ExpTODO: ",e," Type: ",e.type));
 			assert(0);
 		}
 		return doIt(e);
