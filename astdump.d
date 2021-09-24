@@ -169,7 +169,7 @@ struct ASTDumper{
 			writeln("funcdef");
 		}else if(auto de=cast(Declaration)e){
 			// Needs fixing
-			return expObj("declaration", jsonProp("name", dumpExp(de.name)));
+			return expObj("declaration", jsonProp("name", dumpExp(de.name))~jsonProp("type", dumpExp(de.type)));
 		}else{
 			enforce(0,text("StmtTODO: ",e, " Type: ", e.type));
 		}
@@ -253,10 +253,10 @@ struct ASTDumper{
 				if(tae.e.type==tae.type) return doIt(tae.e);
 				bool consume=!tae.constLookup;
 				auto expr = doIt(tae.e);
-                auto props = jsonProp("expr", expr)~jsonProp("type", "\""~tae.type.toString~"\"")~jsonProp("consume", consume);
+                auto props = jsonProp("expr", expr)~jsonProp("type", dumpExp(tae.type))~jsonProp("consume", consume);
                 return expObj("typeChangeExp", props);
-			}else if(cast(Type)e){
-				writeln("type");
+			}else if(auto t=cast(Type)e){
+                return "\""~t.toString.strip("(",")")~"\"";
 			}else{
 				enum common=q{
 					auto e1=doIt(b.e1),e2=doIt(b.e2);
