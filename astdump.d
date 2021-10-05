@@ -54,6 +54,7 @@ struct ASTDumper{
         foreach (name, ops; this.functions){
 			auto str = dumpFuncStmts(ops);
 			auto args = dumpFuncArgs(ops);
+			// writeln(str);
 			parseJSON(str);
 			parseJSON(args);
 			funcJSON ~= "{\n"~jsonProp("func", "\""~name~"\"")~jsonProp("args", args)~jsonProp("statements", str)~"},";
@@ -167,8 +168,10 @@ struct ASTDumper{
 		}else if(auto fd=cast(FunctionDef)e){
 			// TODO
 			writeln("funcdef");
+		}else if(auto pa=cast(Parameter)e){
+			return expObj("param", jsonProp("const", pa.isConst)~jsonProp("name", dumpExp(pa.name))~jsonProp("type", "\""~pa.dtype.toString~"\""));
 		}else if(auto de=cast(Declaration)e){
-			// Needs fixing
+			// Needed?
 			return expObj("declaration", jsonProp("name", dumpExp(de.name))~jsonProp("type", dumpExp(de.type)));
 		}else{
 			enforce(0,text("StmtTODO: ",e, " Type: ", e.type));
@@ -237,7 +240,7 @@ struct ASTDumper{
 				return expObj("iteExp", jsonProp("cond", cond)~jsonProp("then", then)~jsonProp("othw", othw));
 			}else if(auto tpl=cast(TupleExp)e){
 				auto values="["~tpl.e.map!(e=>doIt(e)).fold!((a,b)=>a~",\n"~b)~"]";
-				return jsonProp("values", values);
+				return values;
 			}else if(auto arr=cast(ArrayExp)e){
 				auto et=arr.type.elementType;
 				assert(!!et);
@@ -246,7 +249,7 @@ struct ASTDumper{
 					if(e.type!=et) value~=jsonProp("type", "\""~et.toString~"\"")~jsonProp("consume", !arr.constLookup);
 					return value;
 				}).fold!((a,b)=>a~",\n"~b)~"]";
-				return jsonProp("values", values);
+				return values;
 			}else if(auto ae=cast(AssertExp)e){
 				return expObj("assertExp", jsonProp("cond", dumpExp(ae.e)));
 			}else if(auto tae=cast(TypeAnnotationExp)e){
@@ -255,7 +258,8 @@ struct ASTDumper{
 				auto expr = doIt(tae.e);
                 auto props = jsonProp("expr", expr)~jsonProp("type", dumpExp(tae.type))~jsonProp("consume", consume);
                 return expObj("typeChangeExp", props);
-			}else if(auto t=cast(Type)e){
+			}else if(auto t=cast(Type)e){ 
+				// Needed?
                 return "\""~t.toString.strip("(",")")~"\"";
 			}else{
 				enum common=q{
