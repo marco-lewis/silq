@@ -3,7 +3,7 @@
 Silq is a high-level programming language for quantum computing with a strong static type system.
 More information: https://silq.ethz.ch
 
-## Branch - Verify (In Development)
+## Branch - AST-File (In Development)
 The approach of this branch is to convert the AST of a Silq file into a JSON file. This JSON can then be used by other programming languages to perform analysis (such as the verif-silq submodule). This branch and the respective submodule are in development and could be **unstable**.
 
 ## Installation
