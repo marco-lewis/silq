@@ -4,6 +4,3 @@
 [submodule "util"]
 	path = util
 	url = ../../tgehr/util
-[submodule "verif-silq"]
-	path = verif-silq
-	url = https://github.com/marco-lewis/verif-silq.git
