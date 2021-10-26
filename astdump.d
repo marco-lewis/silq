@@ -9,6 +9,10 @@ import ast.lexer, ast.parser, ast.expression, ast.declaration, ast.error, ast.ty
 import astopt;
 import options, ast.scope_, ast.semantic_, ast.summarize;
 
+string jsonObj(string props){
+	return "{\n"~props~"}";
+}
+
 string expObj(string name, string props){
     return "{\n"~jsonProp("expType", "\""~name~"\"")~props~"}";
 }
@@ -181,7 +185,6 @@ struct ASTDumper{
 		assert(0);
 	}
 
-
 	string dumpExp(Expression e){
 	// 	if(!qstate.state.length) return QState.Value.init;
 		string doIt()(Expression e){
@@ -190,6 +193,15 @@ struct ASTDumper{
 		}
 	 	// TODO: get rid of code duplication
 		string doIt2(Expression e){
+			// Handles uint and other types
+			if (e.type == typeTy){
+				if (isUint(e)){
+					auto ce=cast(CallExp)e;
+					auto id=cast(Identifier)ce.e;
+					return jsonObj(jsonProp("typeObj", "\""~id.name~"\"")~jsonProp("size", doIt(ce.arg)));
+				}
+				enforce(0,text("TypeTODO: ", e));
+			}
 			if(auto id=cast(Identifier)e){
                 if(!id.meaning&&util.among(id.name,"π","pi")) return "\"pi\"";
 				if(id.substitute){
@@ -217,16 +229,17 @@ struct ASTDumper{
 			if(auto ume=cast(UMinusExp)e) return unExp("uMinusExp", doIt(ume.e));
 			if(auto ume=cast(UNotExp)e) return unExp("uNotExp", doIt(ume.e));
 			if(auto ume=cast(UBitNotExp)e) return unExp("uBitNotExp", doIt(ume.e));
-			if(auto le=cast(LambdaExp)e) {return expObj("lambdaExp", jsonProp("args", dumpFuncArgs(le.fd))~jsonProp("statements", dumpFuncStmts(le.fd)));}
-			if(auto ce=cast(CallExp)e){
+			if(auto le=cast(LambdaExp)e){
+				return expObj("lambdaExp", jsonProp("args", dumpFuncArgs(le.fd))~jsonProp("statements", dumpFuncStmts(le.fd)));
+			}if(auto ce=cast(CallExp)e){
 				auto id=cast(Identifier)unwrap(ce.e);
 				auto fe=cast(FieldExp)unwrap(ce.e);
 				auto fun=doIt(ce.e), arg=doIt(ce.arg);
 				return expObj("callExp", operation(fun, arg));
 			}if(auto fe=cast(ForgetExp)e){
-			auto prop = jsonProp("var", dumpExp(fe.var));
-			if(fe.val) prop~=jsonProp("val", dumpExp(fe.val));
-			return expObj("forgetExp", prop);
+				auto prop = jsonProp("var", dumpExp(fe.var));
+				if(fe.val) prop~=jsonProp("val", dumpExp(fe.val));
+				return expObj("forgetExp", prop);
 			}if(auto idx=cast(IndexExp)e){
 				auto a = doIt2(idx.e), i = doIt(idx.a);
 				return expObj("indexExp", jsonProp("var", a)~jsonProp("index", i));
