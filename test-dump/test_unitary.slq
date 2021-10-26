@@ -1,0 +1,9 @@
+def main(){
+  q := 0:B;
+  q := H(q);
+  x := 1:B;
+  x := Y(x);
+  q := Z(q);
+  q := H(q);
+  return (x, q);
+}

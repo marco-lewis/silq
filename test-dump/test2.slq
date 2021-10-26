@@ -1,0 +1,6 @@
+def op[n:!N](q:uint[n], anc:B)mfree{
+  for i in [0..n){
+    anc xorb=q[i];
+  }
+  return (q, anc);
+}

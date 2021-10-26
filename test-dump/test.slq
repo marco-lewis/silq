@@ -1,0 +1,10 @@
+import test2;
+
+n:=5;
+
+def main(){
+  q := 0:uint[n];
+  (q, anc) := op(q, 0:B);
+  (q, 0:B) := reverse(op)(q, anc);
+  print(measure(q));
+}

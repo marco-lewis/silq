@@ -1,0 +1,16 @@
+def H_n[n:!N](x:uint[n]){
+    for i in [0..n){x[i] := H(x[i]);}
+    return x;
+}
+
+n := 4;
+
+def main(){
+    q := 0:uint[n];
+    q := H_n(q);
+    if (q == 3){
+        phase(pi);
+    }
+    q := H_n(q);
+    return q;
+}

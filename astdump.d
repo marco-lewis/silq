@@ -60,7 +60,9 @@ struct ASTDumper{
 			funcJSON ~= "{\n"~jsonProp("func", "\""~name~"\"")~jsonProp("args", args)~jsonProp("statements", str)~"},";
         }
 		funcJSON ~= "]";
-		funcJSON = parseJSON(funcJSON).toPrettyString; // Checks valid json is given
+		// Checks valid json is given
+		funcJSON = parseJSON(funcJSON).toPrettyString;
+
 		import std.file: write;
 		write(this.fname, funcJSON);
     }
