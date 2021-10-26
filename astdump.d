@@ -188,7 +188,7 @@ struct ASTDumper{
 			// TODO: errors - try, catch
 			return doIt2(e);
 		}
-	// 	// TODO: get rid of code duplication
+	 	// TODO: get rid of code duplication
 		string doIt2(Expression e){
 			if(auto id=cast(Identifier)e){
                 if(!id.meaning&&util.among(id.name,"π","pi")) return "\"pi\"";
@@ -241,6 +241,7 @@ struct ASTDumper{
 				auto othw=dumpStm(ite.othw);
 				return expObj("iteExp", jsonProp("cond", cond)~jsonProp("then", then)~jsonProp("othw", othw));
 			}else if(auto tpl=cast(TupleExp)e){
+				if (tpl.length() == 0) return "[]";
 				auto values="["~tpl.e.map!(e=>doIt(e)).fold!((a,b)=>a~",\n"~b)~"]";
 				return values;
 			}else if(auto arr=cast(ArrayExp)e){

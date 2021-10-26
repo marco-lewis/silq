@@ -1,6 +1,7 @@
 n := 4;
 
 def main(){
+    m := 1:!N;
     x := 0:uint[n];
     q := 0:uint[4];
 }
