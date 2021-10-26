@@ -19,4 +19,6 @@ dmd*
 ldc2-*
 docker-ldc-darwin
 **#*#
+
+test-dump/*.json
 smtlib
