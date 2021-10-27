@@ -256,7 +256,7 @@ struct ASTDumper{
 			}else if(auto tpl=cast(TupleExp)e){
 				if (tpl.length() == 0) return "[]";
 				auto values="["~tpl.e.map!(e=>doIt(e)).fold!((a,b)=>a~",\n"~b)~"]";
-				return values;
+				return expObj("tupleExp", jsonProp("values", values));
 			}else if(auto arr=cast(ArrayExp)e){
 				auto et=arr.type.elementType;
 				assert(!!et);
