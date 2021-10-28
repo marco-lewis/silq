@@ -195,6 +195,9 @@ struct ASTDumper{
 		string doIt2(Expression e){
 			// Handles uint and other types
 			if (e.type == typeTy){
+				if (auto b=cast(BoolTy)e){
+					return jsonObj(jsonProp("typeObj", "\"B\""));
+				}
 				if (isUint(e)){
 					auto ce=cast(CallExp)e;
 					auto id=cast(Identifier)ce.e;

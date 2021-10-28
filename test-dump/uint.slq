@@ -1,0 +1,6 @@
+def uint_test(){
+    q := 0 : uint[3];
+    q[0] := H(q[0]);
+    q[1] := Z(q[1]);
+    return q;
+}
