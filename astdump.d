@@ -237,7 +237,13 @@ struct ASTDumper{
 			}if(auto ce=cast(CallExp)e){
 				auto id=cast(Identifier)unwrap(ce.e);
 				auto fe=cast(FieldExp)unwrap(ce.e);
-				auto fun=doIt(ce.e), arg=doIt(ce.arg);
+				auto arg=doIt(ce.arg);
+				auto fun=doIt(ce.e);
+				if (auto ce2=cast(CallExp)ce.e){
+					if (auto ce3=cast(CallExp)ce2.e){
+						fun=doIt(ce3.e);
+					}else{ fun=doIt(ce2.e); }
+				}
 				return expObj("callExp", operation(fun, arg));
 			}if(auto fe=cast(ForgetExp)e){
 				auto prop = jsonProp("var", dumpExp(fe.var));
