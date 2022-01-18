@@ -161,6 +161,9 @@ struct ASTDumper{
 			return expObj("whileExp", jsonProp("cond",cond)~jsonProp("body", bdy));
 		}else if(auto re=cast(ReturnExp)e){
             auto value = dumpExp(re.e);
+			if (!startsWith(value, "[")){
+				value = "[" ~ value ~ "]";
+			}
             return expObj("returnExp", jsonProp("value", value));
 		}else if(auto ae=cast(AssertExp)e){
 			return expObj("assertExp", jsonProp("cond", dumpExp(ae.e)));
