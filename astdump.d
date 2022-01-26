@@ -58,10 +58,12 @@ struct ASTDumper{
         foreach (name, ops; this.functions){
 			auto str = dumpFuncStmts(ops);
 			auto args = dumpFuncArgs(ops);
+			auto ret = dumpExp(ops.ret);
 			// writeln(str);
 			parseJSON(str);
 			parseJSON(args);
-			funcJSON ~= "{\n"~jsonProp("func", "\""~name~"\"")~jsonProp("args", args)~jsonProp("statements", str)~"},";
+			parseJSON(ret);
+			funcJSON ~= "{\n"~jsonProp("func", "\""~name~"\"")~jsonProp("args", args)~jsonProp("statements", str)~jsonProp("retType", ret)~"},";
         }
 		funcJSON ~= "]";
 		// Checks valid json is given
@@ -167,7 +169,8 @@ struct ASTDumper{
             return expObj("returnExp", jsonProp("value", value));
 		}else if(auto ae=cast(AssertExp)e){
 			return expObj("assertExp", jsonProp("cond", dumpExp(ae.e)));
-	 	}else if(auto oe=cast(ObserveExp)e){ // ignore (not implemented as of current version Silq)
+	 	}else if(auto oe=cast(ObserveExp)e){ 
+			 // ignore (not implemented as of current version Silq)
 		}else if(auto fe=cast(ForgetExp)e){
 			auto prop = jsonProp("var", dumpExp(fe.var));
 			if(fe.val) prop~=jsonProp("val", dumpExp(fe.val));
@@ -205,6 +208,11 @@ struct ASTDumper{
 					auto ce=cast(CallExp)e;
 					auto id=cast(Identifier)ce.e;
 					return jsonObj(jsonProp("typeObj", "\""~id.name~"\"")~jsonProp("size", doIt(ce.arg)));
+				}
+				if (auto p=cast(ProductTy)e){
+					auto dom = doIt(p.dom);
+					auto cod = doIt(p.cod);
+					return jsonObj(jsonProp("typeObj", "\"prod\"")~jsonProp("lhs",dom)~jsonProp("rhs",cod));
 				}
 				enforce(0,text("TypeTODO: ", e));
 			}
