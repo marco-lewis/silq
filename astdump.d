@@ -209,6 +209,11 @@ struct ASTDumper{
 					auto id=cast(Identifier)ce.e;
 					return jsonObj(jsonProp("typeObj", "\""~id.name~"\"")~jsonProp("size", doIt(ce.arg)));
 				}
+				if (auto tt=cast(TupleTy)e){
+					if (!tt.length){
+						return jsonObj(jsonProp("typeObj", "\"𝟙\""));
+					}
+				}
 				if (auto p=cast(ProductTy)e){
 					auto dom = doIt(p.dom);
 					auto cod = doIt(p.cod);
