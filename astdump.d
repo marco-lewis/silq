@@ -204,6 +204,11 @@ struct ASTDumper{
 				if (auto b=cast(BoolTy)e){
 					return jsonObj(jsonProp("typeObj", "\"B\""));
 				}
+				if (isNumeric(e)){
+					// TODO: Handle other numerics (ℕt,ℤt,ℚt,ℝ,ℂ)
+					auto ty=whichNumeric(e);
+					return jsonObj(jsonProp("typeObj", "\"ℕ\""));
+				}
 				if (isUint(e)){
 					auto ce=cast(CallExp)e;
 					auto id=cast(Identifier)ce.e;
