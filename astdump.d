@@ -155,8 +155,8 @@ struct ASTDumper{
 			auto bdy=dumpStm(re.bdy);
 			return expObj("repeatExp", jsonProp("repeat", rep)~jsonProp("body", bdy));
 		}else if(auto fe=cast(ForExp)e){
-			auto l=dumpExp(fe.left), r=dumpExp(fe.right), s=fe.step?dumpExp(fe.step):"1", bdy=dumpStm(fe.bdy);
-			return expObj("forExp", jsonProp("left",l)~jsonProp("right",r)~jsonProp("step",s)~jsonProp("body",bdy));
+			auto l=dumpExp(fe.left), r=dumpExp(fe.right), s=fe.step?dumpExp(fe.step):"1", bdy=dumpStm(fe.bdy), id=dumpExp(fe.var);
+			return expObj("forExp", jsonProp("left",l)~jsonProp("right",r)~jsonProp("step",s)~jsonProp("body",bdy)~jsonProp("identifier", id));
 		}else if(auto we=cast(WhileExp)e){
 			auto bdy=dumpStm(we.bdy);
 			auto cond=dumpExp(we.cond);
