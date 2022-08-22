@@ -181,7 +181,8 @@ struct ASTDumper{
 			// TODO
 			writeln("funcdef");
 		}else if(auto pa=cast(Parameter)e){
-			return expObj("param", jsonProp("const", pa.isConst)~jsonProp("name", dumpExp(pa.name))~jsonProp("type", "\""~pa.dtype.toString~"\""));
+			auto tyStr = dumpExp(pa.vtype);
+			return expObj("param", jsonProp("const", pa.isConst)~jsonProp("name", dumpExp(pa.name))~jsonProp("type", tyStr));
 		}else if(auto de=cast(Declaration)e){
 			// Needed?
 			return expObj("declaration", jsonProp("name", dumpExp(de.name))~jsonProp("type", dumpExp(de.type)));
@@ -201,28 +202,29 @@ struct ASTDumper{
 		string doIt2(Expression e){
 			// Handles uint and other types
 			if (e.type == typeTy){
+				auto extraStr=jsonProp("const", to!string(e.isConstant()))~jsonProp("classical", to!string(e.isClassical()));
 				if (auto b=cast(BoolTy)e){
-					return jsonObj(jsonProp("typeObj", "\"B\""));
+					return jsonObj(jsonProp("typeObj", "\"B\"")~extraStr);
 				}
 				if (isNumeric(e)){
 					// TODO: Handle other numerics (ℕt,ℤt,ℚt,ℝ,ℂ)
 					auto ty=whichNumeric(e);
-					return jsonObj(jsonProp("typeObj", "\"ℕ\""));
+					return jsonObj(jsonProp("typeObj", "\"ℕ\"")~extraStr);
 				}
 				if (isUint(e)){
 					auto ce=cast(CallExp)e;
 					auto id=cast(Identifier)ce.e;
-					return jsonObj(jsonProp("typeObj", "\""~id.name~"\"")~jsonProp("size", doIt(ce.arg)));
+					return jsonObj(jsonProp("typeObj", "\""~id.name~"\"")~jsonProp("size", doIt(ce.arg))~extraStr);
 				}
 				if (auto tt=cast(TupleTy)e){
 					if (!tt.length){
-						return jsonObj(jsonProp("typeObj", "\"𝟙\""));
+						return jsonObj(jsonProp("typeObj", "\"𝟙\"")~extraStr);
 					}
 				}
 				if (auto p=cast(ProductTy)e){
 					auto dom = doIt(p.dom);
 					auto cod = doIt(p.cod);
-					return jsonObj(jsonProp("typeObj", "\"prod\"")~jsonProp("lhs",dom)~jsonProp("rhs",cod));
+					return jsonObj(jsonProp("typeObj", "\"prod\"")~jsonProp("lhs",dom)~jsonProp("rhs",cod)~extraStr);
 				}
 				enforce(0,text("TypeTODO: ", e));
 			}
